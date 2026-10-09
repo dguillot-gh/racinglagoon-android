@@ -1,0 +1,31 @@
+{
+  "cue_path": "Racing Lagoon (English v1.1).cue",
+  "cue_name": "Racing Lagoon (English v1.1).cue",
+  "bin_name": "Racing Lagoon (English v1.1).bin",
+  "track_count": 1,
+  "data_track_size": 748996752,
+  "data_track_md5": "1d710cf3ba6874587a934c2eeb36b0fe",
+  "data_track_sha1": "31c7cb9dacdcab9c69c5c9dbbd0e2466f5c0a300",
+  "data_track_crc32": "a780535f",
+  "boot_exe": "SLPS_020.38",
+  "serial": "SLPS-02038",
+  "serial_exe": "SLPS_020.38",
+  "volume_id": "",
+  "display_name": "Racing Lagoon (English v1.1)",
+  "load_address": "0x80010000",
+  "entry_pc": "0x80022214",
+  "text_size": "0x0006C800",
+  "stack_base": "0x801FFFF0",
+  "require_cue": true,
+  "required_disc_fp": "f24af63e5d1ccd00d484564ebee58637cd598d95f2e23b89082256f99b4dc399",
+  "boot_exe_sha256": "fff0e124757e2e07a2663755c93df489030883260746575daef03e0a6998dcfa",
+  "seed_count": 477,
+  "warnings": [
+    "cue has only 1 TRACK \u2014 Track-01-only dumps fail multi-track netplay/catalog gates; prefer a full Redump cue."
+  ],
+  "notes": [
+    "entry_pc/load_address/text_size/stack_base taken from PS-X EXE header.",
+    "seeds are first-pass boot-EXE JAL targets (+ entry); expect to grow as overlays / runtime paths are discovered.",
+    "required_disc_fp is psxrecomp-toc-v1 (matches runtime DiscIdentity)."
+  ]
+}

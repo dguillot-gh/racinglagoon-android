@@ -1,0 +1,25 @@
+# Never in this repository: anything from the disc, saves, builds, keys.
+disc/
+*.bin
+*.BIN
+*.cue
+*.iso
+*.chd
+*.img
+*.ecm
+*.pbp
+saves/
+memcard-import/
+*.mcd
+*.pst
+generated/
+generated.orig/
+psxrecomp/
+build*/
+android/
+launcher_assets/
+*.apk
+*.keystore
+*.jks
+keys.txt
+__pycache__/
