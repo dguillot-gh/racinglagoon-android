@@ -1,0 +1,54 @@
+# Autofilled by tools/new_project_layout/probe_disc.py from your legal dump.
+# Review before shipping. Runtime quirks / overlay seeds still need hand work.
+
+[game]
+name = "Racing Lagoon (English v1.1)"
+id = "SLPS-02038"
+players = 1
+exe = "disc/SLPS_020.38"
+disc = "disc/Racing Lagoon (English v1.1).cue"
+load_address = "0x80010000"
+entry_pc = "0x80022214"
+text_size = "0x0006C800"
+stack_base = "0x801FFFF0"
+
+# Digests are for data Track 01 (first BINARY FILE / TRACK 01).
+[prepare_disc]
+out_dir = "disc"
+bin_name = "Racing Lagoon (English v1.1).bin"
+cue_name = "Racing Lagoon (English v1.1).cue"
+boot_exe = "SLPS_020.38"
+known_sizes = [748996752]
+known_md5 = [
+  "1d710cf3ba6874587a934c2eeb36b0fe",
+]
+known_sha1 = [
+  "31c7cb9dacdcab9c69c5c9dbbd0e2466f5c0a300",
+]
+known_crc32 = [
+  "a780535f",
+]
+
+[recompiler]
+seeds = "seeds/ghidra_funcs.txt"
+out_dir = "generated"
+strict = true
+
+[runtime]
+window_title = "Racing Lagoon (English v1.1) Recompiled"
+memcard_dir = "saves"
+overlay_cache = true
+
+[video]
+renderer = "opengl"
+aspect_ratio = "4:3"
+
+[controller]
+default_mode = "digital"
+
+# Online mount gate: digests + track count + optional TOC fingerprint
+# (see docs/NETPLAY.md).
+[netplay]
+require_cue = true
+required_tracks = 1
+required_disc_fp = "f24af63e5d1ccd00d484564ebee58637cd598d95f2e23b89082256f99b4dc399"

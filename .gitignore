@@ -1,0 +1,55 @@
+# =====================================================================
+#  COPYRIGHT GUARD: nothing from the game is ever committed.
+#  You build from your own discs; tools/check_no_game_data.py checks it.
+# =====================================================================
+
+# Disc images, cue sheets, the game's programs
+*.bin
+*.BIN
+*.cue
+*.iso
+*.img
+*.chd
+*.ecm
+*.pbp
+*.ccd
+*.sub
+SCUS_*
+disc/
+discs/
+
+# Saves, memory cards, BIOS
+*.mcd
+*.mcr
+*.gme
+*.pst
+*.sav
+saves/
+saves-backup/
+memcard-import/
+bios/
+
+# Anything generated from the game, and builds
+generated/
+generated.orig/
+build-android-overlays/
+play_captures.json
+/psxrecomp/
+/android/
+launcher_assets/
+*.apk
+*.tga
+
+# Keys
+*.keystore
+*.jks
+keys.txt
+
+# Logs and tool caches
+progress.log
+logs/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+Thumbs.db

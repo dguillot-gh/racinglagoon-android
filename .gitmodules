@@ -1,0 +1,4 @@
+[submodule "framework"]
+	path = framework
+	url = https://github.com/dguillot-gh/psxrecomp-android.git
+	branch = android

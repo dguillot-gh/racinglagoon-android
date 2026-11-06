@@ -1,0 +1,136 @@
+# Install whatever the build needs and is missing, into the workspace's tools-cache folder.
+#   pwsh -File tools\setup.ps1 [-AcceptAndroidLicenses]
+# Java 17: Microsoft's portable JDK zip, unpacked into workspace\tools-cache.
+# Android SDK: Google's command-line tools into tools-cache\android-sdk, then exactly the NDK/CMake/platform
+# versions the app uses. Google's SDK licence is shown and you are asked to accept it first;
+# -AcceptAndroidLicenses says you already have (for unattended builds). Python 3 (portable, for the overlay
+# pre-compile) into tools-cache\python. git is optional.
+# Safe to rerun: anything already there is left alone. Exit 0 = ready to build. Hand-written.
+param([switch]$AcceptAndroidLicenses)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "paths.ps1")
+$ndk = "ndk;28.2.13676358"; $cmake = "cmake;3.22.1"
+# build-tools 34.0.0 is the default of the Android Gradle plugin the app uses (8.7.3).
+$sdkPackages = @("platform-tools", "platforms;android-35", "build-tools;34.0.0", $ndk, $cmake)
+$fail = @()
+New-Item -ItemType Directory -Force $ToolsCache | Out-Null
+
+function Unzip-Into($url, $what) {
+    $zip = Join-Path $ToolsCache "download.zip"
+    Write-Host "Downloading $what..."
+    Invoke-WebRequest $url -OutFile $zip -UseBasicParsing
+    $unpack = Join-Path $ToolsCache "unpack"
+    if (Test-Path $unpack) { Remove-Item $unpack -Recurse -Force }
+    Expand-Archive $zip $unpack
+    Remove-Item $zip -Force
+    return $unpack
+}
+
+# --- git (optional) ------------------------------------------------------------
+if (Get-Command git -ErrorAction SilentlyContinue) { Write-Host "OK   git" }
+else { Write-Host "NOTE git not found: not needed for porting or building (install with: winget install --id Git.Git -e)" }
+
+# --- Java 17 -------------------------------------------------------------------
+$java = Find-Java
+if (-not $java) {
+    $unpack = Unzip-Into "https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.zip" "Java 17 (about 190 MB)"
+    Get-ChildItem $unpack -Directory | ForEach-Object { Move-Item $_.FullName (Join-Path $ToolsCache $_.Name) }
+    Remove-Item $unpack -Recurse -Force
+    $java = Find-Java
+}
+if ($java) { Write-Host "OK   Java: $java" } else { $fail += "Java 17" }
+
+# --- Android SDK ---------------------------------------------------------------
+$sdk = Find-Sdk
+if (-not $sdk) { $sdk = $SdkHome }
+$need = $sdkPackages | Where-Object { -not (Test-Path (Join-Path $sdk ($_ -replace ";", "\"))) }
+# An SDK on the PC is used only if it is already complete; anything missing goes onto the drive.
+if ($need -and $sdk -ne $SdkHome) {
+    $sdk = $SdkHome
+    $need = $sdkPackages | Where-Object { -not (Test-Path (Join-Path $sdk ($_ -replace ";", "\"))) }
+}
+if (-not $need) {
+    Write-Host "OK   Android SDK: $sdk (NDK, CMake, platform, build-tools, platform-tools all present)"
+} elseif (-not $java) {
+    $fail += "Android SDK packages (needs Java first)"
+} else {
+    New-Item -ItemType Directory -Force $sdk | Out-Null
+    $sdkmanager = Join-Path $sdk "cmdline-tools\latest\bin\sdkmanager.bat"
+    if (-not (Test-Path $sdkmanager)) {
+        $repo = Invoke-WebRequest "https://dl.google.com/android/repository/repository2-3.xml" -UseBasicParsing
+        $m = [regex]::Match($repo.Content, '(?s)<remotePackage path="cmdline-tools;latest">.*?(commandlinetools-win-\d+_latest\.zip)')
+        $zipName = if ($m.Success) { $m.Groups[1].Value } else { "commandlinetools-win-16111833_latest.zip" }
+        $unpack = Unzip-Into "https://dl.google.com/android/repository/$zipName" "Android command-line tools (about 150 MB)"
+        New-Item -ItemType Directory -Force (Join-Path $sdk "cmdline-tools") | Out-Null
+        Move-Item (Join-Path $unpack "cmdline-tools") (Join-Path $sdk "cmdline-tools\latest")
+        Remove-Item $unpack -Recurse -Force
+    }
+    $env:JAVA_HOME = Split-Path (Split-Path $java)
+    # Google's SDK comes under its own licence: the person running this accepts it, not the script.
+    if (-not $AcceptAndroidLicenses) {
+        Write-Host ""
+        Write-Host "The Android SDK, NDK and CMake are Google's, under the Android Software Development Kit License"
+        Write-Host "Agreement: https://developer.android.com/studio/terms"
+        $answer = Read-Host "Accept it and install them? (y/n)"
+        if ($answer -notmatch '^(y|yes)$') {
+            Write-Host "FAIL: Android SDK licence not accepted; nothing installed (rerun to be asked again)"; exit 1
+        }
+    }
+    Write-Host "Installing into $sdk : $($need -join ', ') (a few GB, can take a while)..."
+    # Command-line tools 23+ (2026) replaced sdkmanager with "android sdk", which names packages with
+    # "/" (ndk/28.2.13676358). The old sdkmanager.bat now only forwards to it, and cmd splits the old
+    # "ndk;28..." names at the ";", so nothing but platform-tools got installed (Surface, 2026-10-06).
+    $androidCli = Join-Path $sdk "cmdline-tools\latest\bin\android.exe"
+    if (Test-Path $androidCli) {
+        & $androidCli --no-metrics "--sdk=$sdk" sdk install @($need | ForEach-Object { $_ -replace ";", "/" }) | Out-Host
+    } else {
+        Write-Host "Accepting Android SDK licences..."
+        ("y`n" * 30) | & $sdkmanager "--sdk_root=$sdk" --licenses | Out-Null
+        & $sdkmanager "--sdk_root=$sdk" @($need | ForEach-Object { "`"$_`"" }) | Out-Host
+    }
+    $still = $sdkPackages | Where-Object { -not (Test-Path (Join-Path $sdk ($_ -replace ";", "\"))) }
+    if ($still) { $fail += "Android SDK: $($still -join ', ')" } else { Write-Host "OK   Android SDK: $sdk (installed)" }
+}
+
+# --- Python 3 (overlay pre-compile tools) -----------------------------------------
+# The official Windows Python as a NuGet package: a plain zip with tools\python.exe and the
+# standard library, no installer, nothing written outside the drive.
+$py = Find-Python
+if (-not $py) {
+    $ver = "3.12.10"
+    $nupkg = Join-Path $ToolsCache "python.zip"
+    Write-Host "Downloading Python $ver (about 15 MB)..."
+    Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/python/$ver/python.$ver.nupkg" -OutFile $nupkg -UseBasicParsing
+    if (Test-Path $PythonHome) { Remove-Item $PythonHome -Recurse -Force }
+    Expand-Archive $nupkg $PythonHome
+    Remove-Item $nupkg -Force
+    $py = Find-Python
+}
+if ($py) { Write-Host "OK   Python: $py" } else { $fail += "Python 3" }
+
+# --- Shared signing key ------------------------------------------------------------
+# Android installs an update only when it is signed with the same key as the installed app, so every
+# PC must sign with ONE key. Use this PC's debug key (%USERPROFILE%\.android\debug.keystore) as the
+# shared one, but only if it is the key the APKs already on the drive (..\apks) were signed with, or
+# if there are none yet. A different PC's key is never copied over the phone's installed games.
+$sharedKey = Join-Path $ToolsCache "debug.keystore"
+$myKey = Join-Path $env:USERPROFILE ".android\debug.keystore"
+if (Test-Path $sharedKey) {
+    Write-Host "OK   shared signing key: $sharedKey"
+} elseif ((Test-Path $myKey) -and $java) {
+    $keytool = Join-Path (Split-Path $java) "keytool.exe"
+    $mine = ((& $keytool -list -v -keystore $myKey -storepass android -alias androiddebugkey 2>$null) |
+             Select-String 'SHA256:') -replace '.*SHA256:\s*', '' | Select-Object -First 1
+    $apk = Get-ChildItem (Join-Path $DriveRoot "apks") -Recurse -Filter *.apk -ErrorAction SilentlyContinue | Select-Object -First 1
+    $theirs = if ($apk) { ((& $keytool -printcert -jarfile $apk.FullName 2>$null) | Select-String 'SHA256:') -replace '.*SHA256:\s*', '' | Select-Object -First 1 } else { $null }
+    if (-not $apk -or ($mine -and $theirs -and $mine.Trim() -eq $theirs.Trim())) {
+        Copy-Item $myKey $sharedKey
+        Write-Host "OK   shared signing key: this PC's debug key, copied to $sharedKey"
+    } else {
+        Write-Host "NOTE this PC's signing key is not the one the phone's games were built with; not copied (builds here can't update them)"
+    }
+}
+
+if ($fail.Count) { Write-Host "FAIL: still missing: $($fail -join '; ')"; exit 1 }
+Write-Host "SETUP OK"
+exit 0

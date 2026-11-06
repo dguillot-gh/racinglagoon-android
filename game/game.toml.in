@@ -1,0 +1,35 @@
+# Android runtime config, written by the start menu after the user selects
+# their own disc image (it fills the disc placeholder).
+[game]
+name = "Racing Lagoon (English v1.1)"
+id = "SLPS-02038"
+players = 1
+exe = "disc/SLPS_020.38"
+discs = [
+  @@DISC1@@,
+]
+load_address = "0x80010000"
+entry_pc = "0x80022214"
+text_size = "0x0006C800"
+stack_base = "0x801FFFF0"
+
+[recompiler]
+seeds = "seeds/ghidra_funcs.txt"
+out_dir = "generated"
+strict = true
+
+[runtime]
+idle_skip = true
+video_renderer = "software"
+overlay_cache = true
+
+[controller]
+default_mode = "digital"
+
+[bios]
+path = "bios/openbios.bin"
+
+
+[video]
+renderer = "opengl"
+gl_thread = true
